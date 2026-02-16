@@ -17,11 +17,31 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Login submitted:', formData);
-    // Add login logic here
-    navigate('/dashboard');
+    
+    try {
+      const response = await fetch('http://127.0.0.1:5001/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        navigate('/dashboard');
+      } else {
+        alert(data.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      alert('Could not connect to the server. Make sure the backend is running on port 5001.');
+    }
   };
 
   return (

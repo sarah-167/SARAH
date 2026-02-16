@@ -1,16 +1,96 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
 function Dashboard() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [users, setUsers] = useState([]);
+    const [editingUser, setEditingUser] = useState(null);
+    const [editFormData, setEditFormData] = useState({ username: '', email: '' });
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            navigate('/login');
+            return;
+        }
+        fetchUsers();
+    }, [navigate]);
+
+    const fetchUsers = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://127.0.0.1:5001/api/users', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setUsers(data);
+            } else {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('token');
+                    navigate('/login');
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this user?')) return;
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://127.0.0.1:5001/api/users/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (response.ok) {
+                setUsers(users.filter(user => user.id !== id));
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+        }
+    };
+
+    const handleEdit = (user) => {
+        setEditingUser(user.id);
+        setEditFormData({ username: user.username, email: user.email });
+    };
+
+    const handleUpdate = async (e) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://127.0.0.1:5001/api/users/${editingUser}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(editFormData)
+            });
+            if (response.ok) {
+                setEditingUser(null);
+                fetchUsers();
+            }
+        } catch (error) {
+            console.error('Error updating user:', error);
+        }
+    };
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen);
     };
 
     const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
         navigate('/login');
     };
 
@@ -41,28 +121,55 @@ function Dashboard() {
             </header>
 
             <main className="dashboard-content">
-                <div className="card-container">
-                    <div className="card">
-                        <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=500&q=80" alt="Data Management" />
-                        <div className="card-info">
-                            <h3>Feature One</h3>
-                            <p>Explore our amazing first feature that helps you manage your data efficiently.</p>
+                <div className="user-management">
+                    <h2>User Management</h2>
+                    {editingUser ? (
+                        <div className="edit-form">
+                            <h3>Edit User</h3>
+                            <form onSubmit={handleUpdate}>
+                                <input 
+                                    type="text" 
+                                    placeholder="Username" 
+                                    value={editFormData.username} 
+                                    onChange={(e) => setEditFormData({...editFormData, username: e.target.value})}
+                                    required
+                                />
+                                <input 
+                                    type="email" 
+                                    placeholder="Email" 
+                                    value={editFormData.email} 
+                                    onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
+                                    required
+                                />
+                                <button type="submit">Update</button>
+                                <button type="button" onClick={() => setEditingUser(null)}>Cancel</button>
+                            </form>
                         </div>
-                    </div>
-                    <div className="card">
-                        <img src="https://images.unsplash.com/photo-1543286386-713bdd548da4?auto=format&fit=crop&w=500&q=80" alt="Analytics and Reporting" />
-                        <div className="card-info">
-                            <h3>Feature Two</h3>
-                            <p>Discover new possibilities with our advanced analytics and reporting tools.</p>
-                        </div>
-                    </div>
-                    <div className="card">
-                        <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=500&q=80" alt="Team Collaboration" />
-                        <div className="card-info">
-                            <h3>Feature Three</h3>
-                            <p>Stay connected with your team using our integrated collaboration workspace.</p>
-                        </div>
-                    </div>
+                    ) : (
+                        <table className="user-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {users.map(user => (
+                                    <tr key={user.id}>
+                                        <td>{user.id}</td>
+                                        <td>{user.username}</td>
+                                        <td>{user.email}</td>
+                                        <td>
+                                            <button onClick={() => handleEdit(user)}>Edit</button>
+                                            <button onClick={() => handleDelete(user.id)}>Delete</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             </main>
 

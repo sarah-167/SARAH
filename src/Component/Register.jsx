@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './Register.css';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -18,14 +19,38 @@ const Register = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       alert("Passwords do not match!");
       return;
     }
-    console.log('Registration submitted:', formData);
-    // Add registration logic here
+    
+    try {
+      const response = await fetch('http://127.0.0.1:5001/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Registration successful!');
+        navigate('/login');
+      } else {
+        alert(data.error || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('Error during registration:', error);
+      alert('Could not connect to the server. Make sure the backend is running on port 5001.');
+    }
   };
 
   return (
